@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        #mapCanvas {
+            width: 100%;
+            height: 1000px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="mapCanvas"></div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDjTJW6jiCbl8XMxhMBYXl-pa06RoU0YIQ"></script>
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js" integrity="sha384-fKnu0iswBIqkjxrhQCTZ7qlLHOFEgNkRmK2vaO/LbTZSXdJfAu6ewRBdwHPhBo/H" crossorigin="anonymous"></script>
+
+    <script>
+        var position = [30.9434546, 31.2873342];
+        var socket = io('http://localhost:3000');
+        var markers = {};
+        var image = 'http://localhost:3000/icon';
+        socket.on('update_location', (data) => {
+            socket.emit('join_update_location', {
+                driver_id: data.driver_id,
+                dashboard: true
+            });
+        });
+        socket.on('update_location_on_map', (data) => {
+            console.log(data);
+        });
+
+        function initialize() {
+            var latlng = new google.maps.LatLng(position[0], position[1]);
+            var myOptions = {
+                zoom: 12,
+                center: latlng,
+                mapTypeId: google.maps.MapTypeId.ROADMAP
+            };
+            map = new google.maps.Map(document.getElementById("mapCanvas"), myOptions);
+
+        }
+        socket.on('update_location_on_map', (data) => {
+            // console.log(data);
+            if (!markers[data.driver_id]) {
+                setMarker([data.lat, data.lng], data.driver_id);
+            } else if (markers[data.driver_id]) {
+                // transition([data.lat, data.lng] , data.driver_id) ;
+                updateMap({
+                    lat: data.lat,
+                    lng: data.lng
+                }, data.driver_id);
+            }
+        });
+        socket.on('disconnect_from_map', (data) => {
+            removeMarker(data.driver_id);
+            console.log("disconnecting dataaaa", data);
+        });
+
+        //Load google map
+        google.maps.event.addDomListener(window, 'load', initialize);
+
+        function updateMap(coordinates, marker_id) {
+            if (findMarker(marker_id)) {
+                findMarker(marker_id).setPosition(coordinates);
+                findMarker(marker_id).setTitle("lat:" + coordinates.lat + "lng:" + coordinates.lng);
+            }
+        }
+
+        socket.on('disconnect_from_map', (data) => {
+            console.log("data disconnect ", data);
+        });
+
+        function setMarker(marker_position, markerId) {
+            removeMarker(markerId);
+            var temp_marker = new google.maps.Marker({
+                position: new google.maps.LatLng(marker_position[0], marker_position[1])
+                    // ,icon: image
+            });
+            temp_marker.setMap(map);
+            temp_marker.metadata = {
+                id: markerId
+            };
+            markers[markerId] = temp_marker;
+        }
+
+        function removeMarker(markerId) {
+            if (markers[markerId]) {
+                markers[markerId].setMap(null);
+                delete markers[markerId];
+            }
+        }
+
+        function findMarker(markerId) {
+            if (markers[markerId]) {
+                // markers[markerId].setMap(null);
+                // delete markers[markerId];
+                return markers[markerId];
+            }
+        }
+        console.log(markers);
+    </script>
+</body>
+
+</html>
+
+</html>
